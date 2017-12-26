@@ -1,4 +1,4 @@
-MODEL = '/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/dqn_pong/model_episode_1910.h5'
+MODEL = '/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/dqn_pong_sh/model_episode_400.h5'
 
 import os
 if not os.path.exists(MODEL):
@@ -50,7 +50,7 @@ x_t = env.reset()
 x_t = process_frame(x_t)
 s_t = np.stack((x_t, x_t, x_t), axis=3)
 s_t = s_t.reshape(1, s_t.shape[1], s_t.shape[2], s_t.shape[3])
-for i in range(10000):
+for i in range(7000):
     env.render()
     q = model.predict(s_t)
     print(q)
