@@ -18,28 +18,28 @@ import tensorflow as tf
 import skimage
 from skimage import color, exposure, transform
 
-env = gym.make('PongDeterministic-v4')
+env = gym.make('MsPacman-v4')
 
 ACTIONS = env.action_space.n # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
 OBSERVATION = 500. # timesteps to observe before training
-EXPLORE = 500000. # frames over which to anneal epsilon
-FINAL_EPSILON = 0.1 # final value of epsilon
-INITIAL_EPSILON = 0.5 # starting value of epsilon
-REPLAY_MEMORY = 20000 # number of previous transitions to remember
-BATCH = 32 # size of minibatch
+EXPLORE = 1100000. # frames over which to anneal epsilon
+FINAL_EPSILON = 0.05 # final value of epsilon
+INITIAL_EPSILON = 0.7 # starting value of epsilon
+REPLAY_MEMORY = 22000 # number of previous transitions to remember
+BATCH = 24 # size of minibatch
 LEARNING_RATE = 1e-5
-SGD_LEARNING_RATE = 1e-3
+SGD_LEARNING_RATE = 1e-5
 
 img_rows , img_cols = 84, 84
 #Convert image into Black and white
 img_channels = 3 #We stack 3 frames
 
-max_epLength = 1000
+max_epLength = 1500
 
-NUM_EPISODES = 500
+NUM_EPISODES = 1500+1
 
-SAVE_DIR = 'dqn_pong_sh/'
+SAVE_DIR = 'dqn_pacman_v2_sh/'
 
 import os
 if not os.path.exists(SAVE_DIR):
@@ -89,10 +89,10 @@ class Memory():
         if (len(self.M) > self.buff_sz):
             dump = self.M.popleft()
             if dump[2] > 0.0:
-                if random.random() < 0.65:
+                if random.random() < 0.5:
                     self.append(dump)
             elif dump[2] < 0.0:
-                if random.random() < 0.45:
+                if random.random() < 0.5:
                     self.append(dump)
     def sample(self, num_samples):
         minibatch = random.sample(self.M, num_samples)
@@ -150,7 +150,7 @@ def train_model(model, env):
                 a_t = policy_max_Q
             x_t1,r_t,done,_ = env.step(a_t)
             x_t1 = process_frame(x_t1)
-            s_t1 = np.append(x_t1, s_t[:, :, :, :2], axis=3)
+            s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3)
             
             t += 1
             TIMESTEP = t
@@ -199,8 +199,8 @@ def train_model(model, env):
             save_model(model, path)
     return rewards
     
-#model = build_model()
-model = keras.models.load_model('/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/dqn_pong/model_episode_50.h5')
+model = build_model()
+#model = keras.models.load_model('/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/dqn_breakout_sh/model_episode_2750.h5')
 
 rewards = train_model(model, env)
 

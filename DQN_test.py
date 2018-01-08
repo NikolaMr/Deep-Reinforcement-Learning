@@ -1,4 +1,4 @@
-MODEL = '/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/dqn_pong_sh/model_episode_400.h5'
+MODEL = 'ddqn_pong_sh/model_episode_1900.h5'
 
 import os
 if not os.path.exists(MODEL):
