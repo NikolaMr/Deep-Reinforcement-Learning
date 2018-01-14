@@ -1,4 +1,4 @@
-MODEL = 'ddqn_pong_sh/model_episode_1900.h5'
+MODEL = 'ddqn_breakout_aftertrain_5400_sh/model_episode_1400.h5'
 
 import os
 if not os.path.exists(MODEL):
@@ -45,21 +45,34 @@ def process_frame(x_t):
     return x_t
 
 model = keras.models.load_model(MODEL)
-env = gym.make('PongDeterministic-v4')
-x_t = env.reset()
-x_t = process_frame(x_t)
-s_t = np.stack((x_t, x_t, x_t), axis=3)
-s_t = s_t.reshape(1, s_t.shape[1], s_t.shape[2], s_t.shape[3])
-for i in range(7000):
-    env.render()
-    q = model.predict(s_t)
-    print(q)
-    policy_max_Q = np.argmax(q)
-    a_t = policy_max_Q
-    x_t1,r_t,done,_ = env.step(a_t)
-    x_t1 = process_frame(x_t1)
-    s_t1 = np.append(x_t1, s_t[:, :, :, :2], axis=3)
-    s_t = s_t1
-    if done:
-        break
-env.close()
+env = gym.make('BreakoutDeterministic-v4')
+ACTIONS = env.action_space.n # number of valid actions
+
+def play_game():
+    EPSILON = 0.01
+    x_t = env.reset()
+    x_t = process_frame(x_t)
+    s_t = np.stack((x_t, x_t, x_t), axis=3)
+    s_t = s_t.reshape(1, s_t.shape[1], s_t.shape[2], s_t.shape[3])
+    rAll = 0
+    i = 0
+    for _ in range(7000):
+        i +=1
+        env.render()
+        q = model.predict(s_t)
+        #print(q)
+        policy_max_Q = np.argmax(q)
+        a_t = policy_max_Q
+        if np.random.rand(1) < EPSILON:
+                a_t = random.randrange(ACTIONS)
+        x_t1,r_t,done,_ = env.step(a_t)
+        x_t1 = process_frame(x_t1)
+        s_t1 = np.append(x_t1, s_t[:, :, :, :2], axis=3)
+        s_t = s_t1
+        rAll += r_t
+        if done:
+            break
+    print('steps', i)
+    return rAll
+rAll = play_game()
+print('Final reward is', rAll)
