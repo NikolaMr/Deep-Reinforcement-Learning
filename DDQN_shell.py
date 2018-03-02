@@ -18,16 +18,16 @@ import tensorflow as tf
 import skimage
 from skimage import color, exposure, transform
 
-GAME_NAME = 'BreakoutDeterministic-v4'
+GAME_NAME = 'PongDeterministic-v4'
 
 env = gym.make(GAME_NAME)
 
 ACTIONS = env.action_space.n # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
 OBSERVATION = 500. # timesteps to observe before training
-EXPLORE = 600000. # frames over which to anneal epsilon
+EXPLORE = 700000. # frames over which to anneal epsilon
 FINAL_EPSILON = 0.05 # final value of epsilon
-INITIAL_EPSILON = 0.2 # starting value of epsilon
+INITIAL_EPSILON = 0.6 # starting value of epsilon
 REPLAY_MEMORY = 15000 # number of previous transitions to remember
 BATCH = 24 # size of minibatch
 LEARNING_RATE = 1e-4
@@ -43,9 +43,9 @@ max_epLength = 700
 
 update_freq = 1
 
-NUM_EPISODES = 2500+1
+NUM_EPISODES = 2000+1
 
-SAVE_DIR = 'ddqn_breakout_aftertrain_5400_sh/'
+SAVE_DIR = 'ddqn_pong_logged_sh/'
 
 import os
 if not os.path.exists(SAVE_DIR):
@@ -214,6 +214,12 @@ def train_model(model, env, log_file=None):
                 policy_max_Q = np.argmax(q)
                 a_t = policy_max_Q
             x_t1,r_t,done,_ = env.step(a_t)
+            
+            # reward clipping
+            if r_t > 0.0:
+                r_t = 1.0
+            elif r_t < 0.0:
+                r_t = -1.0
             x_t1 = process_frame(x_t1)
             s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3)
             
@@ -265,9 +271,9 @@ def train_model(model, env, log_file=None):
             save_model(model, path)
     return rewards
         
-log_file = open(GAME_NAME + '_aftertrain_5400' +'.txt', 'w', 1)
-#model = build_model()
-model = keras.models.load_model('/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/ddqn_breakout_sh/model_episode_5400.h5')
+log_file = open(GAME_NAME +'_logged.txt', 'w', 1)
+model = build_model()
+#model = keras.models.load_model('/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/breakout_best.h5')
 rewards = train_model(model, env, log_file)
 log_file.close()
 
