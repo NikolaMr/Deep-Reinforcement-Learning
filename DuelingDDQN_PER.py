@@ -22,6 +22,7 @@ import skimage
 from skimage import color, exposure, transform
 
 GAME_NAME = 'BreakoutDeterministic-v4'
+PLOT_NAME = GAME_NAME + '.png'
 
 env = gym.make(GAME_NAME)
 
@@ -321,4 +322,4 @@ log_file.close()
 
 from matplotlib import pyplot as plt
 plt.plot(range(len(rewards)), rewards)
-plt.show()
+plt.savefig(PLOT_NAME)
