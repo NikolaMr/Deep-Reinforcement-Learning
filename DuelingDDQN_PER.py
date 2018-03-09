@@ -28,13 +28,13 @@ env = gym.make(GAME_NAME)
 
 ACTIONS = env.action_space.n # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
-OBSERVATION = 20000. # timesteps to observe before training
-EXPLORE = 1000000. # frames over which to anneal epsilon
+OBSERVATION = 30000. # timesteps to observe before training
+EXPLORE = 100000. # frames over which to anneal epsilon
 FINAL_EPSILON = 0.05 # final value of epsilon
-INITIAL_EPSILON = 0.6 # starting value of epsilon
-REPLAY_MEMORY = 20000 # number of previous transitions to remember
+INITIAL_EPSILON = 0.4 # starting value of epsilon
+REPLAY_MEMORY = 30000 # number of previous transitions to remember
 BATCH = 32 # size of minibatch
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 0.5*1e-4
 SAVING_FREQ = 100 # save model every 100 iterations
 
 LOGGING_FREQ = 25
@@ -47,9 +47,7 @@ max_epLength = 700
 
 update_freq = 1
 
-#NUM_EPISODES = 1700+1
-
-SAVE_DIR = 'dueling_ddqn_PER_breakout_logged_5e5_iters_sh/'
+SAVE_DIR = 'dueling_ddqn_PER_breakout_after5e5_logged_3e5_iters_lr_0.5e-4/'
 
 import os
 if not os.path.exists(SAVE_DIR):
@@ -80,7 +78,7 @@ def build_model():
     stream = Flatten()(model)
     
     advantage = Dense(ACTIONS)(stream)
-#    print(advantage)
+
     value = Dense(1)(stream)
     
     def mean(x):
@@ -88,7 +86,6 @@ def build_model():
         res = keras.backend.mean(x, axis=1, keepdims=True)
         return res
     
-#    print(mean(advantage))
     meanRes = Lambda(function=mean)(advantage)
     
     from keras.layers import Concatenate
@@ -96,18 +93,14 @@ def build_model():
     for i in range(ACTIONS):
         concatenations.append(meanRes)
     meanRes = Concatenate()(concatenations)
-#    print(meanRes)
     
     advantage = keras.layers.subtract([advantage, meanRes])
-#    print(dir(advantage))
     
     qOut = keras.layers.add([value, advantage])
 
     model = Model(inputs=inputs, outputs=qOut)
     adam = Adam(lr=LEARNING_RATE)
     model.compile(loss='mse',optimizer=adam)
-    #sgd = SGD(lr=SGD_LEARNING_RATE)
-    #model.compile(loss='mse',optimizer=sgd)
     print("We finish building the model")
     return model
     
@@ -122,9 +115,7 @@ def assign_linear_comb(m, tm, tau):
     '''Sets the value of a tensor variable,
     from a Numpy array.
     '''
-    #tf.assign(x, np.asarray(value)).op.run(session=get_session())
     assign_op = tm.assign(m.value() * tau + (1-tau) * tm.value())
-    #K.get_session().run(assign_op, feed_dict={assign_placeholder: value})
     return assign_op
 
 def update_target_graph(target_model, model, tau):
@@ -246,28 +237,32 @@ def train_model(model, env, log_file=None):
                 policy_max_Q = np.argmax(q)
                 a_t = policy_max_Q
             x_t1,r_t,done,_ = env.step(a_t)
-            
+            r_t_clipped = r_t
             # reward clipping
-            if r_t > 0.0:
-                r_t = 1.0
-            elif r_t < 0.0:
-                r_t = -1.0
+            if r_t_clipped > 0.0:
+                r_t_clipped = 1.0
+            elif r_t_clipped < 0.0:
+                r_t_clipped = -1.0
             x_t1 = process_frame(x_t1)
             s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3)
             
             t += 1
+            
+            if (t - OBSERVE) > 0 and (t - OBSERVE) % 1000 == 0:
+                print('exploring step', (t - OBSERVE), '/', EXPLORE)
+            
             TIMESTEP = t
             error = 0.0
             if t >= OBSERVE:
                 q = model.predict(s_t)
                 policy_max_Q = np.argmax(q)
                 a_t = policy_max_Q
-                q_t1 = r_t + np.max(model.predict(s_t1)[0])
+                q_t1 = r_t_clipped + np.max(model.predict(s_t1)[0])
                 error = abs(q[0][a_t] - q_t1)
             else:
-                error = r_t
+                error = r_t_clipped
 
-            M.append((s_t, a_t, r_t, s_t1, done), error)
+            M.append((s_t, a_t, r_t_clipped, s_t1, done), error)
             
             if epsilon > FINAL_EPSILON and t > OBSERVE:
                 epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
@@ -314,9 +309,9 @@ def train_model(model, env, log_file=None):
             save_model(model, path)
     return rewards
         
-log_file = open(GAME_NAME +'_logged.txt', 'w', 1)
+log_file = open(SAVE_DIR + GAME_NAME +'_logged.txt', 'w', 1)
 model = build_model()
-#model = keras.models.load_model('/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/breakout_best.h5')
+model.load_weights("dueling_ddqn_PER_breakout_logged_5e5_iters_lr_2.5e-4/model_episode_1500.h5")
 rewards = train_model(model, env, log_file)
 log_file.close()
 
