@@ -12,6 +12,7 @@ class SumTree:
         parent = (idx - 1) // 2
         self.tree[parent] += change
         if parent != 0:
+            #print('parent', parent)
             self._propagate(parent, change)
     def _retreive(self, idx, s):
         # since we count from 0
@@ -38,11 +39,12 @@ class SumTree:
         
     def update(self, idx, priority):
         change = priority - self.tree[idx]
+        #print('change is', change)
         self.tree[idx] = priority
         self._propagate(idx, change)
         
     def get(self, s):
         idx = self._retreive(0, s)
         dataIdx = idx - self.capacity + 1
-        return self.data[dataIdx]
+        return self.data[dataIdx], idx
         
