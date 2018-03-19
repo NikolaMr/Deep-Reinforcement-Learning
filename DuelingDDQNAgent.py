@@ -69,10 +69,22 @@ class Dueling_DDQN_Agent(Agent.Agent):
         self.tau = setup_dict['tau']
 
     def get_batch(self):
-        return self.memory.sample(self.replay_batch_size)
+        self.samples = self.memory.sample(self.replay_batch_size)
+        return self.samples
 
     def post_train(self):
         update_target(self.var_assign_ops)
+        for i in range(len(self.samples)): 
+            sample = self.samples[i]
+            
+            state_t = sample[0]
+            action_t = sample[1]
+            reward_t = sample[2]
+            state_t1 = sample[3]
+            done_t = sample[4]
+
+            if reward_t != 0.0:
+                self.cnt_rewarded += 1
 
     def save_transition(self, transition):
         self.memory.append(transition)
