@@ -34,9 +34,9 @@ class Dueling_DDQN_PER_Agent(DuelingDDQNAgent.Dueling_DDQN_Agent):
         if setup_dict == None:
             setup_dict = {}
         if 'alfa' not in setup_dict:
-            setup_dict['alfa'] = 0.6
+            setup_dict['alfa'] = 1.4
         if 'err_eps' not in setup_dict:
-            setup_dict['err_eps'] = 0.4
+            setup_dict['err_eps'] = 1e-3
         self.alfa = setup_dict['alfa']
         self.err_eps = setup_dict['err_eps']
 

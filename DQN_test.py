@@ -1,4 +1,4 @@
-MODEL = 'ddqn_breakout_aftertrain_5400_sh/model_episode_1400.h5'
+MODEL = 'testing/model_episode_1100.h5'
 
 import os
 if not os.path.exists(MODEL):

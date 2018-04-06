@@ -94,11 +94,11 @@ class Agent:
         if not 'end_eps' in setup_dict:
             setup_dict['end_eps'] = 0.1
         if not 'observing_frames' in setup_dict:
-            setup_dict['observing_frames'] = 30000
+            setup_dict['observing_frames'] = 300
         if not 'exploring_frames' in setup_dict:
             setup_dict['exploring_frames'] = 500000
         if not 'replay_memory_size' in setup_dict:
-            setup_dict['replay_memory_size'] = 30000
+            setup_dict['replay_memory_size'] = 300
         if not 'replay_batch_size' in setup_dict:
             setup_dict['replay_batch_size'] = 32
         if not 'learning_rate' in setup_dict:
@@ -120,7 +120,7 @@ class Agent:
         if not 'gamma' in setup_dict:
             setup_dict['gamma'] = 0.99
         if not 'update_freq' in setup_dict:
-            setup_dict['update_freq'] = 1
+            setup_dict['update_freq'] = 4
         if not 'log_filename' in setup_dict:
             setup_dict['log_filename'] = 'log.txt'
 
@@ -161,26 +161,23 @@ class Agent:
         raise NotImplementedError
 
     def replay(self):
-        loss = 0.0
-        if self.t % (self.update_freq) == 0:
-            
-            minibatch = self.get_batch()
-            inputs = np.zeros((self.replay_batch_size, self.img_dims[0], self.img_dims[1], self.num_consecutive_frames))
-            targets = np.zeros((self.replay_batch_size, self.num_actions))
-            
-            for i in range(0, self.replay_batch_size):
-                state_t = minibatch[i][0]
-                action_t = minibatch[i][1]
-                reward_t = minibatch[i][2]
-                state_t1 = minibatch[i][3]
-                done_t = minibatch[i][4]
+        minibatch = self.get_batch()
+        inputs = np.zeros((self.replay_batch_size, self.img_dims[0], self.img_dims[1], self.num_consecutive_frames))
+        targets = np.zeros((self.replay_batch_size, self.num_actions))
+        
+        for i in range(0, self.replay_batch_size):
+            state_t = minibatch[i][0]
+            action_t = minibatch[i][1]
+            reward_t = minibatch[i][2]
+            state_t1 = minibatch[i][3]
+            done_t = minibatch[i][4]
 
-                inputs[i] = state_t
-                targets[i] = self.get_target(state_t, action_t, reward_t, state_t1, done_t)
-                
-            loss += self.model.train_on_batch(inputs, targets)
+            inputs[i] = state_t
+            targets[i] = self.get_target(state_t, action_t, reward_t, state_t1, done_t)
             
-            self.post_train()
+        loss = self.model.train_on_batch(inputs, targets)
+        
+        self.post_train()
         return loss
 
     def initialize(self):

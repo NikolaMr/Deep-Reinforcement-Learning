@@ -25,13 +25,13 @@ env = gym.make(GAME_NAME)
 
 ACTIONS = env.action_space.n # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
-OBSERVATION = 20000. # timesteps to observe before training
-EXPLORE = 1000000. # frames over which to anneal epsilon
-FINAL_EPSILON = 0.05 # final value of epsilon
-INITIAL_EPSILON = 0.6 # starting value of epsilon
-REPLAY_MEMORY = 20000 # number of previous transitions to remember
+OBSERVATION = 30000. # timesteps to observe before training
+EXPLORE = 300000. # frames over which to anneal epsilon
+FINAL_EPSILON = 0.1 # final value of epsilon
+INITIAL_EPSILON = 0.8 # starting value of epsilon
+REPLAY_MEMORY = 30000 # number of previous transitions to remember
 BATCH = 32 # size of minibatch
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 2.5*1e-4
 SAVING_FREQ = 100 # save model every 100 iterations
 
 LOGGING_FREQ = 25
@@ -43,8 +43,6 @@ img_channels = 3 #We stack 3 frames
 max_epLength = 700
 
 update_freq = 1
-
-#NUM_EPISODES = 1700+1
 
 SAVE_DIR = 'dueling_ddqn_breakout_logged_1e6_iters_sh/'
 
@@ -148,10 +146,6 @@ def process_frame(x_t):
     x_t /= 255.0
     return x_t
 
-import time
-
-TIMESTEP = 0
-
 class Memory():
     def __init__(self, buff_sz):
         self.buff_sz = buff_sz
@@ -248,17 +242,17 @@ def train_model(model, env, log_file=None):
                 a_t = policy_max_Q
             x_t1,r_t,done,_ = env.step(a_t)
             
+            r_t_clipped = r_t
             # reward clipping
-            if r_t > 0.0:
-                r_t = 1.0
-            elif r_t < 0.0:
-                r_t = -1.0
+            if r_t_clipped > 0.0:
+                r_t_clipped = 1.0
+            elif r_t_clipped < 0.0:
+                r_t_clipped = -1.0
             x_t1 = process_frame(x_t1)
             s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3)
             
             t += 1
-            TIMESTEP = t
-            M.append((s_t, a_t, r_t, s_t1, done))
+            M.append((s_t, a_t, r_t_clipped, s_t1, done))
             
             if epsilon > FINAL_EPSILON and t > OBSERVE:
                 epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE

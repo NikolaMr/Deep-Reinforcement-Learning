@@ -73,8 +73,9 @@ class Dueling_DDQN_Agent(Agent.Agent):
         return self.samples
 
     def post_train(self):
-        update_target(self.var_assign_ops)
-        for i in range(len(self.samples)): 
+        if (self.t % self.update_freq) == 0:
+            update_target(self.var_assign_ops)
+        for i in range(len(self.samples)):
             sample = self.samples[i]
             
             state_t = sample[0]
