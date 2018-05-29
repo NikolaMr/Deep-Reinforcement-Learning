@@ -44,7 +44,7 @@ SAVE_DIR = 'dqn_pacman_v2_sh/'
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
-    
+
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
@@ -52,7 +52,7 @@ config.gpu_options.allow_growth = True
 set_session(tf.Session(config=config))
 
 def build_model():
-    
+
     model = Sequential()
     model.add(Conv2D(32, (8, 8), strides=(4, 4), padding='valid',input_shape=(img_rows,img_cols,img_channels)))  #80*80*4
     model.add(Activation('relu'))
@@ -72,14 +72,14 @@ def build_model():
     #model.compile(loss='mse',optimizer=sgd)
     print("We finish building the model")
     return model
-    
+
 from skimage import data, io
 from matplotlib import pyplot as plt
-    
+
 def show_as_img(arr):
     io.imshow(arr.reshape(img_rows, img_cols, 3))
     plt.show()
-    
+
 class Memory():
     def __init__(self, buff_sz):
         self.buff_sz = buff_sz
@@ -102,7 +102,7 @@ class Memory():
 
 def save_model(model, path):
     model.save(path)
-    
+
 def process_frame(x_t):
     x_t = skimage.color.rgb2gray(x_t)
     x_t = skimage.transform.resize(x_t,(img_cols,img_rows), mode='constant')
@@ -116,16 +116,16 @@ import time
 TIMESTEP = 0
 
 def train_model(model, env):
-    
+
     M = Memory(REPLAY_MEMORY)
- 
+
     OBSERVE = OBSERVATION
     epsilon = INITIAL_EPSILON
 
     t = 0
-    
+
     rewards = []
-    
+
     for idxEpisode in range(NUM_EPISODES):
         #Reset environment and get first new observation
         x_t = env.reset()
@@ -151,11 +151,11 @@ def train_model(model, env):
             x_t1,r_t,done,_ = env.step(a_t)
             x_t1 = process_frame(x_t1)
             s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3)
-            
+
             t += 1
             TIMESTEP = t
             M.append((s_t, a_t, r_t, s_t1, done))
-            
+
             if epsilon > FINAL_EPSILON and t > OBSERVE:
                 epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
                 minibatch = M.sample(BATCH)
@@ -186,19 +186,19 @@ def train_model(model, env):
                 loss += model.train_on_batch(inputs, targets)
             rAll += r_t
             s_t = s_t1
-            
+
             if done == True:
                 break
-            
+
         rewards.append(rAll)
-        
+
         print('episode', idxEpisode, 'length', j, 'reward', rAll, 'epsilon', epsilon, 'loss sum', loss, 'non zero rewards', ct_non_zero_reward)
-        
+
         if idxEpisode % 25 == 0:
             path = SAVE_DIR + 'model_episode_' + str(idxEpisode) + '.h5'
             save_model(model, path)
     return rewards
-    
+
 model = build_model()
 #model = keras.models.load_model('/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/dqn_breakout_sh/model_episode_2750.h5')
 

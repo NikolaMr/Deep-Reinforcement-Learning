@@ -50,7 +50,7 @@ SAVE_DIR = 'ddqn_pong_logged_sh/'
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
-    
+
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
@@ -60,9 +60,9 @@ set_session(tf.Session(config=config))
 tau = 0.01
 
 def build_model():
-    
+
     model = Sequential()
-    model.add(Conv2D(32, (8, 8), strides=(4, 4), padding='valid',input_shape=(img_rows,img_cols,img_channels)))  
+    model.add(Conv2D(32, (8, 8), strides=(4, 4), padding='valid',input_shape=(img_rows,img_cols,img_channels)))
     model.add(Activation('relu'))
     model.add(Conv2D(64, (4, 4), strides=(2, 2), padding='valid'))
     model.add(Activation('relu'))
@@ -80,12 +80,12 @@ def build_model():
     #model.compile(loss='mse',optimizer=sgd)
     print("We finish building the model")
     return model
-    
+
 def copy_model(model):
     """Returns a copy of a keras model."""
     model.save('tmp_model')
     return keras.models.load_model('tmp_model')
-    
+
 def assign_linear_comb(m, tm, tau):
     import tensorflow as tf
     from keras import backend as K
@@ -107,7 +107,7 @@ def update_target_graph(target_model, model, tau):
                 assign_linear_comb(model_layer.weights[idxWeight], target_model_layer.weights[idxWeight], tau)
             )
     return var_assign_ops
-    
+
 def update_target(var_assign_ops):
     from keras import backend as K
     for var_assign_op in var_assign_ops:
@@ -115,7 +115,7 @@ def update_target(var_assign_ops):
 
 def save_model(model, path):
     model.save(path)
-    
+
 def process_frame(x_t):
     x_t = skimage.color.rgb2gray(x_t)
     x_t = skimage.transform.resize(x_t,(img_cols,img_rows), mode='constant')
@@ -172,27 +172,27 @@ def play_game():
     return rAll
 
 def train_model(model, env, log_file=None):
-    
+
     target_model = copy_model(model)
     var_assign_ops = update_target_graph(target_model, model, tau)
-    
+
     #init replay memory
     M = Memory(REPLAY_MEMORY)
- 
+
     OBSERVE = OBSERVATION
     epsilon = INITIAL_EPSILON
 
     t = 0
-    
+
     rewards = []
-    
+
     for idxEpisode in range(NUM_EPISODES):
-        
+
         if idxEpisode % LOGGING_FREQ == 0 and log_file != None:
             rAll = play_game()
             log_file.write(str(idxEpisode) + ' ' + str(rAll) + '\n')
             print('tested at episode', idxEpisode, 'reward is', rAll)
-        
+
         #Reset environment and get first new observation
         x_t = env.reset()
         x_t = process_frame(x_t)
@@ -214,7 +214,7 @@ def train_model(model, env, log_file=None):
                 policy_max_Q = np.argmax(q)
                 a_t = policy_max_Q
             x_t1,r_t,done,_ = env.step(a_t)
-            
+
             # reward clipping
             if r_t > 0.0:
                 r_t = 1.0
@@ -222,19 +222,19 @@ def train_model(model, env, log_file=None):
                 r_t = -1.0
             x_t1 = process_frame(x_t1)
             s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3)
-            
+
             t += 1
             TIMESTEP = t
             M.append((s_t, a_t, r_t, s_t1, done))
-            
+
             if epsilon > FINAL_EPSILON and t > OBSERVE:
                 epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
-                
+
                 if t % (update_freq) == 0:
                     minibatch = M.sample(BATCH)
                     inputs = np.zeros((BATCH, s_t.shape[1], s_t.shape[2], s_t.shape[3]))
                     targets = np.zeros((BATCH, ACTIONS))
-                    
+
                     # experience replay
                     for i in range(0, BATCH):
                         state_t = minibatch[i][0]
@@ -259,18 +259,18 @@ def train_model(model, env, log_file=None):
                     update_target(var_assign_ops)
             rAll += r_t
             s_t = s_t1
-            
+
             if done == True:
                 break
         rewards.append(rAll)
-        
+
         print('episode', idxEpisode, 'length', j, 'reward', rAll, 'epsilon', epsilon, 'loss sum', loss, 'non zero rewards', ct_non_zero_reward)
-        
+
         if idxEpisode % SAVING_FREQ == 0:
             path = SAVE_DIR + 'model_episode_' + str(idxEpisode) + '.h5'
             save_model(model, path)
     return rewards
-        
+
 log_file = open(GAME_NAME +'_logged.txt', 'w', 1)
 model = build_model()
 #model = keras.models.load_model('/home/nikola/Faks/Diplomski/TreciSemestar/Projekt/atari_player/breakout_best.h5')

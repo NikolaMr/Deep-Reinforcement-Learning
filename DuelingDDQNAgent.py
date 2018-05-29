@@ -53,7 +53,7 @@ def update_target_graph(target_model, model, tau):
                 assign_linear_comb(model_layer.weights[idxWeight], target_model_layer.weights[idxWeight], tau)
             )
     return var_assign_ops
-    
+
 def update_target(var_assign_ops):
     from keras import backend as K
     for var_assign_op in var_assign_ops:
@@ -77,7 +77,7 @@ class Dueling_DDQN_Agent(Agent.Agent):
             update_target(self.var_assign_ops)
         for i in range(len(self.samples)):
             sample = self.samples[i]
-            
+
             state_t = sample[0]
             action_t = sample[1]
             reward_t = sample[2]
@@ -114,19 +114,19 @@ class Dueling_DDQN_Agent(Agent.Agent):
         model = Activation('relu')(model)
         model = Conv2D(64, (3, 3), strides=(1, 1), padding='valid')(model)
         model = Activation('relu')(model)
-        
+
         stream = Flatten()(model)
-        
+
         advantage = Dense(self.num_actions)(stream)
         value = Dense(1)(stream)
-        
+
         def mean(x):
             import keras.backend
             res = keras.backend.mean(x, axis=1, keepdims=True)
             return res
-        
+
         meanRes = Lambda(function=mean)(advantage)
-        
+
         from keras.layers import Concatenate
         concatenations = []
         for i in range(self.num_actions):
