@@ -27,6 +27,12 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 set_session(tf.Session(config=config))
 
+# correct solution:
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=0) # only difference
+
 def copy_model(model):
     """Returns a copy of a keras model."""
     model.save('tmp_model')
@@ -49,7 +55,8 @@ def play_game(env, model, img_dims, img_channels):
     s_t = np.stack((x_t, x_t, x_t), axis=3)
     s_t = s_t.reshape(1, s_t.shape[1], s_t.shape[2], s_t.shape[3])
     rAll = 0
-    for i in range(7000):
+    timestep = 0
+    while(True):
         q = model.predict(s_t)
         policy_max_Q = np.argmax(q)
         a_t = policy_max_Q
@@ -60,17 +67,18 @@ def play_game(env, model, img_dims, img_channels):
         s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3)
         s_t = s_t1
         rAll += r_t
+        timestep += 1
         if done:
             break
-    return rAll
+    return rAll, timestep
 
 class Agent:
     def __init__(self, setup_dict=None):
         """
         setup dict contains info like this:
-            'start_eps': 0.6, 
-            'end_eps': 0.1, 
-            'observing_frames': 30000, 
+            'start_eps': 0.6,
+            'end_eps': 0.1,
+            'observing_frames': 30000,
             'exploring_frames': 500000,
             'replay_memory_size': 30000,
             'replay_batch_size': 32,
@@ -88,7 +96,7 @@ class Agent:
         """
         if setup_dict == None:
             setup_dict = {}
-            
+
         if not 'start_eps' in setup_dict:
             setup_dict['start_eps'] = 0.6
         if not 'end_eps' in setup_dict:
@@ -148,6 +156,8 @@ class Agent:
         self.env = gym.make(self.game_name)
         self.num_actions = self.env.action_space.n
 
+        self.summary_writer = tf.summary.FileWriter("QAgent")
+
     def build_model(self):
         raise NotImplementedError
 
@@ -164,7 +174,7 @@ class Agent:
         minibatch = self.get_batch()
         inputs = np.zeros((self.replay_batch_size, self.img_dims[0], self.img_dims[1], self.num_consecutive_frames))
         targets = np.zeros((self.replay_batch_size, self.num_actions))
-        
+
         for i in range(0, self.replay_batch_size):
             state_t = minibatch[i][0]
             action_t = minibatch[i][1]
@@ -174,9 +184,9 @@ class Agent:
 
             inputs[i] = state_t
             targets[i] = self.get_target(state_t, action_t, reward_t, state_t1, done_t)
-            
+
         loss = self.model.train_on_batch(inputs, targets)
-        
+
         self.post_train()
         return loss
 
@@ -191,29 +201,51 @@ class Agent:
             q = self.model.predict(s_t)
             policy_max_Q = np.argmax(q)
             return policy_max_Q
+        #q = self.model.predict(s_t)
+        #q_soft = softmax(q[0])
+        #return np.random.choice(self.num_actions, p=q_soft)
 
     def save_transition(self, transition):
         raise NotImplementedError
-        
+
     def train(self):
         rewards = []
         self.initialize()
         epsilon = self.start_eps
 
         self.t = 0
-        
+
         idxEpisode = 0
-        
+
+        loss_logger = []
+
         while True:
             idxEpisode += 1
             if self.t >= self.exploring_frames + self.observing_frames:
                 break
-            
-            if idxEpisode % self.log_freq == 0 and self.log_file != None:
-                rAll = play_game(self.env, self.model, self.img_dims, self.num_consecutive_frames)
+
+            if self.t >= self.observing_frames and idxEpisode % self.log_freq == 0 and self.log_file != None:
+                testing_rewards = []
+                testing_timesteps = []
+                for i in range(5):
+                    rAll, timesteps = play_game(self.env, self.model, self.img_dims, self.num_consecutive_frames)
+                    testing_rewards.append(rAll)
+                    testing_timesteps.append(timesteps)
                 self.log_file.write(str(idxEpisode) + ' ' + str(rAll) + '\n')
                 print('tested at episode', idxEpisode, 'reward is', rAll)
-            
+
+                summary = tf.Summary()
+
+                summary.value.add(tag='Performance/Reward', simple_value=float(sum(testing_rewards) / len(testing_rewards)))
+                summary.value.add(tag='Performance/Length', simple_value=float(sum(testing_timesteps) / len(testing_timesteps)))
+                summary.value.add(tag='Losses/Value Loss', simple_value=float(sum(loss_logger) / len(loss_logger)))
+
+                self.summary_writer.add_summary(summary, idxEpisode)
+
+                self.summary_writer.flush()
+
+                loss_logger = []
+
             self.cnt_rewarded = 0
             #Reset environment and get first new observation
             x_t = self.env.reset()
@@ -229,32 +261,33 @@ class Agent:
                 a_t = self.choose_action(s_t, epsilon)
 
                 x_t1,r_t,done,_ = self.env.step(a_t)
-                
+
                 r_t_clipped = r_t
                 # reward clipping
                 if r_t_clipped > 0.0:
                     r_t_clipped = 1.0
                 elif r_t_clipped < 0.0:
                     r_t_clipped = -1.0
-                
+
                 x_t1 = process_frame(x_t1, self.img_dims[0], self.img_dims[1])
                 s_t1 = np.append(x_t1, s_t[:, :, :, :self.num_consecutive_frames-1], axis=3)
-                
+
                 self.t += 1
-                
+
                 self.save_transition((s_t, a_t, r_t_clipped, s_t1, done)) #M.append((s_t, a_t, r_t_clipped, s_t1, done))
-                
+
                 if epsilon > self.end_eps and self.t > self.observing_frames:
                     epsilon -= (self.start_eps - self.end_eps) / self.exploring_frames
-                    
+
                     loss += self.replay()
                 rAll += r_t
                 s_t = s_t1
-                
+
                 if done == True:
                     break
             rewards.append(rAll)
             print('episode', idxEpisode, 'length', j, 'reward', rAll, 'epsilon', epsilon, 'avg batch loss', (loss / j))
+            loss_logger.append((loss/j))
             print ('rewarded count', self.cnt_rewarded, '/', j * self.replay_batch_size)
             if idxEpisode % self.saving_freq == 0:
                 path = self.saving_dir + 'model_episode_' + str(idxEpisode) + '.h5'
