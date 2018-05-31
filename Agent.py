@@ -18,20 +18,17 @@ from keras.optimizers import SGD , Adam
 import tensorflow as tf
 import skimage
 from skimage import color, exposure, transform
-
+import ExplorationStrategies
 import os
 
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
+
+import Memories
+
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 set_session(tf.Session(config=config))
-
-# correct solution:
-def softmax(x):
-    """Compute softmax values for each sets of scores in x."""
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum(axis=0) # only difference
 
 def copy_model(model):
     """Returns a copy of a keras model."""
@@ -117,8 +114,10 @@ class Agent:
             setup_dict['saving_freq'] = 100
         if not 'saving_dir' in setup_dict:
             setup_dict['saving_dir'] = "AgentResults"
-        if not 'img_dims' in setup_dict:
-            setup_dict['img_dims'] = (84, 84)
+        if not 'img_width' in setup_dict:
+            setup_dict['img_width'] = 84
+        if not 'img_height' in setup_dict:
+            setup_dict['img_height'] = 84
         if not 'num_consecutive_frames' in setup_dict:
             setup_dict['num_consecutive_frames'] = 3
         if not 'max_ep_length' in setup_dict:
@@ -131,23 +130,41 @@ class Agent:
             setup_dict['update_freq'] = 4
         if not 'log_filename' in setup_dict:
             setup_dict['log_filename'] = 'log.txt'
+        if not 'MemoryType' in setup_dict:
+            setup_dict['MemoryType'] = 'ExperienceReplayMemory'
+        if not 'PEREps' in setup_dict:
+            setup_dict['PEREps'] = 1e-3
+        if not 'PERAlfa' in setup_dict:
+            setup_dict['PERAlfa'] = 1.4
+        if not 'ExplorationStrategy' in setup_dict:
+            setup_dict['ExplorationStrategy'] = 'EpsilonGreedyExplorationStrategy'
 
-        self.start_eps = setup_dict['start_eps']
-        self.end_eps = setup_dict['end_eps']
-        self.observing_frames = setup_dict['observing_frames']
-        self.exploring_frames = setup_dict['exploring_frames']
-        self.replay_memory_size = setup_dict['replay_memory_size']
-        self.replay_batch_size = setup_dict['replay_batch_size']
-        self.learning_rate = setup_dict['learning_rate']
-        self.log_freq = setup_dict['log_freq']
-        self.saving_freq = setup_dict['saving_freq']
+        self.start_eps = float(setup_dict['start_eps'])
+        self.end_eps = float(setup_dict['end_eps'])
+        self.observing_frames = int(setup_dict['observing_frames'])
+        self.exploring_frames = int(setup_dict['exploring_frames'])
+        self.replay_memory_size = int(setup_dict['replay_memory_size'])
+        self.replay_batch_size = int(setup_dict['replay_batch_size'])
+        self.learning_rate = float(setup_dict['learning_rate'])
+        self.log_freq = int(setup_dict['log_freq'])
+        self.saving_freq = int(setup_dict['saving_freq'])
         self.saving_dir = os.path.join(setup_dict['saving_dir'], '')
-        self.img_dims = setup_dict['img_dims']
-        self.num_consecutive_frames = setup_dict['num_consecutive_frames']
-        self.max_ep_length = setup_dict['max_ep_length']
+        self.img_dims = int(setup_dict['img_width']), int(setup_dict['img_height'])
+        self.num_consecutive_frames = int(setup_dict['num_consecutive_frames'])
+        self.max_ep_length = int(setup_dict['max_ep_length'])
         self.game_name = setup_dict['game_name']
-        self.gamma = setup_dict['gamma']
-        self.update_freq = setup_dict['update_freq']
+        self.gamma = float(setup_dict['gamma'])
+        self.update_freq = int(setup_dict['update_freq'])
+
+        if setup_dict['MemoryType'] == 'ExperienceReplayMemory':
+            self.memory = Memories.ExperienceReplayMemory(self.replay_memory_size)
+        if setup_dict['MemoryType'] == 'MemoryPrioritizedForgetting':
+            self.memory = Memories.MemoryPrioritizedForgetting(self.replay_memory_size)
+        if setup_dict['MemoryType'] == 'PrioritizedExperienceReplayMemory':
+            eps, alfa = setup_dict['PEREps'], setup_dict['PERAlfa']
+            self.memory = Memories.PrioritizedExperienceReplayMemory(self.replay_memory_size, eps, alfa)
+
+        print('initialized memory', self.memory)
 
         if not os.path.exists(self.saving_dir):
             os.makedirs(self.saving_dir)
@@ -156,7 +173,16 @@ class Agent:
         self.env = gym.make(self.game_name)
         self.num_actions = self.env.action_space.n
 
-        self.summary_writer = tf.summary.FileWriter("QAgent")
+        if setup_dict['ExplorationStrategy'] == 'EpsilonGreedyExplorationStrategy':
+            self.exploration_strategy = ExplorationStrategies.EpsilonGreedyExplorationStrategy(self.start_eps, self.end_eps, self.exploring_frames, self.num_actions)
+        if setup_dict['ExplorationStrategy'] == 'BoltzmannExplorationStrategy':
+            self.exploration_strategy = ExplorationStrategies.BoltzmannExplorationStrategy(self.num_actions)
+
+        self.summary_writer = tf.summary.FileWriter(os.path.join(self.saving_dir,"Tensorboard"))
+
+        import json
+        with open(os.path.join(self.saving_dir,'config.json'), 'w') as fp:
+            json.dump(setup_dict, fp)
 
     def build_model(self):
         raise NotImplementedError
@@ -165,10 +191,11 @@ class Agent:
         raise NotImplementedError
 
     def get_batch(self):
-        raise NotImplementedError
+        self.samples = self.memory.sample(self.replay_batch_size)
+        return self.samples
 
     def post_train(self):
-        raise NotImplementedError
+        self.memory.post_train(self)
 
     def replay(self):
         minibatch = self.get_batch()
@@ -181,7 +208,6 @@ class Agent:
             reward_t = minibatch[i][2]
             state_t1 = minibatch[i][3]
             done_t = minibatch[i][4]
-
             inputs[i] = state_t
             targets[i] = self.get_target(state_t, action_t, reward_t, state_t1, done_t)
 
@@ -193,25 +219,14 @@ class Agent:
     def initialize(self):
         raise NotImplementedError
 
-    def choose_action(self, s_t, epsilon):
-        #Choose an action by greedily (with e chance of random action) from the Q-network
-        if np.random.rand(1) < epsilon or self.t < self.observing_frames:
-            return random.randrange(self.num_actions)
-        else:
-            q = self.model.predict(s_t)
-            policy_max_Q = np.argmax(q)
-            return policy_max_Q
-        #q = self.model.predict(s_t)
-        #q_soft = softmax(q[0])
-        #return np.random.choice(self.num_actions, p=q_soft)
+    def choose_action(self, s_t):
+        return self.exploration_strategy.choose_action(self, s_t)
 
     def save_transition(self, transition):
-        raise NotImplementedError
+        self.memory.save_experience(self, transition)
 
     def train(self):
-        rewards = []
         self.initialize()
-        epsilon = self.start_eps
 
         self.t = 0
 
@@ -258,7 +273,7 @@ class Agent:
             #The Q-Network
             while j < self.max_ep_length:
                 j+=1
-                a_t = self.choose_action(s_t, epsilon)
+                a_t = self.choose_action(s_t)
 
                 x_t1,r_t,done,_ = self.env.step(a_t)
 
@@ -274,10 +289,10 @@ class Agent:
 
                 self.t += 1
 
-                self.save_transition((s_t, a_t, r_t_clipped, s_t1, done)) #M.append((s_t, a_t, r_t_clipped, s_t1, done))
+                self.save_transition((s_t, a_t, r_t_clipped, s_t1, done))
 
-                if epsilon > self.end_eps and self.t > self.observing_frames:
-                    epsilon -= (self.start_eps - self.end_eps) / self.exploring_frames
+                if self.t > self.observing_frames:
+                    self.exploration_strategy.step()
 
                     loss += self.replay()
                 rAll += r_t
@@ -285,11 +300,9 @@ class Agent:
 
                 if done == True:
                     break
-            rewards.append(rAll)
-            print('episode', idxEpisode, 'length', j, 'reward', rAll, 'epsilon', epsilon, 'avg batch loss', (loss / j))
+            print('episode', idxEpisode, 'length', j, 'reward', rAll, 'avg batch loss', (loss / j))
             loss_logger.append((loss/j))
             print ('rewarded count', self.cnt_rewarded, '/', j * self.replay_batch_size)
             if idxEpisode % self.saving_freq == 0:
                 path = self.saving_dir + 'model_episode_' + str(idxEpisode) + '.h5'
                 save_model(self.model, path)
-        return rewards

@@ -66,9 +66,9 @@ class Dueling_DDQN_PER_Agent(DuelingDDQNAgent.Dueling_DDQN_Agent):
     def post_train(self):
         super(Dueling_DDQN_PER_Agent, self).post_train()
         indices_with_priorities = []
-        for i in range(len(self.sample_with_indices[0])): 
+        for i in range(len(self.sample_with_indices[0])):
             sample = self.sample_with_indices[0][i]
-            
+
             state_t = sample[0]
             action_t = sample[1]
             reward_t = sample[2]
