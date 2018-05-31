@@ -217,7 +217,7 @@ class Agent:
         return loss
 
     def initialize(self):
-        raise NotImplementedError
+        self.build_model()
 
     def choose_action(self, s_t):
         return self.exploration_strategy.choose_action(self, s_t)

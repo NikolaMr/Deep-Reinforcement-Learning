@@ -68,8 +68,7 @@ def build_model():
 
     adam = Adam(lr=LEARNING_RATE)
     model.compile(loss='mse',optimizer=adam)
-    #sgd = SGD(lr=SGD_LEARNING_RATE)
-    #model.compile(loss='mse',optimizer=sgd)
+
     print("We finish building the model")
     return model
 
