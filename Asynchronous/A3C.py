@@ -101,10 +101,10 @@ class Agent:
             self.final_lstm_state = final_state
             output = tf.reshape(output, (-1, LSTM_CELL_CNT))
 
-            self.policy = tf.contrib.layers.fully_connected(embedding, self.action_size, activation_fn=tf.nn.softmax, weights_initializer=tf.random_normal_initializer(stddev=0.5), biases_initializer=None,\
+            self.policy = tf.contrib.layers.fully_connected(output, self.action_size, activation_fn=tf.nn.softmax, weights_initializer=tf.random_normal_initializer(stddev=0.5), biases_initializer=None,\
                                                            scope='fc_policy')
             self.value = tf.contrib.layers.fully_connected(\
-                                                           embedding, \
+                                                           output, \
                                                            1, \
                                                            activation_fn=None, \
                                                            weights_initializer=tf.random_normal_initializer(stddev=.25), \
@@ -358,6 +358,9 @@ config = tf.ConfigProto()#device_count = {'GPU': 0})
 config.gpu_options.allow_growth=True
 
 sess = tf.Session(config=config)
+writer = tf.summary.FileWriter("graph", sess.graph)
+
+print('saved graph')
 
 def global_saving_thread(agent, sess):
 
