@@ -62,24 +62,24 @@ class Dueling_DDQN_Agent(Agent.Agent):
 
         stream = Flatten()(model)
 
-        advantage = Dense(self.num_actions)(stream)
-        value = Dense(1)(stream)
+        advantage = Dense(self.num_actions, name='Advantage_stream')(stream)
+        value = Dense(1, name='Value_stream')(stream)
 
         def mean(x):
             import keras.backend
             res = keras.backend.mean(x, axis=1, keepdims=True)
             return res
 
-        meanRes = Lambda(function=mean)(advantage)
+        meanRes = Lambda(function=mean, name='Mean_layer')(advantage)
 
         from keras.layers import Concatenate
         concatenations = []
         for i in range(self.num_actions):
             concatenations.append(meanRes)
-        meanRes = Concatenate()(concatenations)
+        meanRes = Concatenate(name='Mean_broadcasting')(concatenations)
 
-        advantage = keras.layers.subtract([advantage, meanRes])
-        qOut = keras.layers.add([value, advantage])
+        advantage = keras.layers.subtract([advantage, meanRes], name='A_z')
+        qOut = keras.layers.add([value, advantage], name='Q_out')
 
         model = Model(inputs=inputs, outputs=qOut)
         adam = Adam(lr=self.learning_rate)
