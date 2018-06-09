@@ -8,18 +8,18 @@ import threading
 
 IMG_WIDTH = 105
 IMG_HEIGHT = 80
-CNT_FRAMES = 4
+CNT_FRAMES = 3
 GLOBAL_SCOPE = 'global'
 VALUE_MODIFIER = 0.5*1e0
 POLICY_MODIFIER = 1*1e0
-ENTROPY_MODIFIER = 5*1e-3#2.5e-5#0.0005
+ENTROPY_MODIFIER = 2.5*1e-1#2.5e-5#0.0005
 MAX_STEPS = 30
 DISCOUNT = 0.99
 ENV_NAME = 'BreakoutDeterministic-v4'
 #ENV_NAME = 'PongDeterministic-v4'
-MAX_EP_LENGTH = 1000
+MAX_EP_LENGTH = 100000
 LEARNING_RATE = 1e-4
-CLIP_VALUE = 10.0
+CLIP_VALUE = 2.0
 DECAY = 0.99
 def process_frame(x_t, img_rows, img_cols):
     x_t = skimage.color.rgb2gray(x_t)
@@ -88,7 +88,7 @@ class Agent:
 
             #normalization = tf.layers.batch_normalization(embedding)
 
-            self.policy = tf.contrib.layers.fully_connected(embedding, self.action_size, activation_fn=tf.nn.softmax, weights_initializer=tf.random_normal_initializer(stddev=0.5), biases_initializer=None,\
+            self.policy = tf.contrib.layers.fully_connected(embedding, self.action_size, activation_fn=tf.nn.softmax, weights_initializer=tf.random_normal_initializer(stddev=0.05), biases_initializer=None,\
                                                            scope='fc_policy')
             self.value = tf.contrib.layers.fully_connected(\
                                                            embedding, \

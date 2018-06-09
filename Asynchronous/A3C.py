@@ -18,10 +18,10 @@ DISCOUNT = 0.99
 ENV_NAME = 'BreakoutDeterministic-v4'
 #ENV_NAME = 'PongDeterministic-v4'
 #MAX_ITERATIONS = 100000000
-MAX_EP_LENGTH = 1000
+MAX_EP_LENGTH = 100000
 #MAX_LEARNING_TIME = 7 * 60 * 60 # 7 hours
 LEARNING_RATE = 1e-4
-CLIP_VALUE = 10.0
+CLIP_VALUE = 2.0
 
 def process_frame(x_t, img_rows, img_cols):
     x_t = skimage.color.rgb2gray(x_t)
@@ -366,12 +366,13 @@ def global_saving_thread(agent, sess):
 
     global global_counter
 
-    MAX_MODELS = 3
+    MAX_MODELS = 1000
     cnt_model = 0
 
     with sess.as_default(), sess.graph.as_default():
 
-        saver = tf.train.Saver()
+        collection = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
+        saver = tf.train.Saver(collection)
 
         elapsed_time = time.time() - start_time
 
