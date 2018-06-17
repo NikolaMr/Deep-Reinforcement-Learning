@@ -56,29 +56,29 @@ Value based algorithms can be trained very easily. Training can be done in one o
 
 Configuration data that can be setup is:
 
-__start_eps__: starting epsilon value for epsilon greedy exploration strategy (original papers recommend 1.0)
-__end_eps__: final epsilon value for epsilon greedy exploration strategy (original papers recommend 0.1)
-__observing_frames__: number of frames to observe without any learning done
-__exploring_frames__: number of frames to perform learning
-__replay_memory_size__: size of the experience buffer (must be <= observing_frames) (30000 should be enough but the bigger the better)
-__replay_batch_size__: number of experiences to consider in one train batch (original papers recommend 32)
-__learning_rate__: learning rate of the AdamOptimizer (recommended value is 1e-4)
-__log_freq__: frequency of testing the agent (log_freq=10 means that agent will be tested every 10 learning epsiodes - testing is done by letting the agent play 5 consecutive games and the average reward and episode length are recorded)
-__saving_freq__: frequency of saving model parameters
-__saving_dir__: directory in which should logs and models be stored
-__img_width__: width of input image (original papers recommend 84)
-__img_height__: height of input image (original papers recommend 84)
-__num_consecutive_frames__: number of consecutive frames to stack in order to form one input to the neural network (num_consecutive_frames=3 means to use last 3 frames as a state representation => then the input to neural network is WxHx3) (original papers recommend 4)
-__max_ep_length__: maximum episode length
-__game_name__: name of the game to learn (only games that give image as a state representation are supported)
-__gamma__: reward decay factor
-__update_freq__: frequency at which to update target network (used in DDQN and DDDQN algorithms)
-__log_filename__: where to save logging file
-__MemoryType__: which memory to use (supported values are ExperienceReplayMemory, MemoryPrioritizedForgetting and PrioritizedExperienceReplayMemory)
-__PEREps__: epsilon parameter in prioritized experience replay memory
-__PERAlfa__: alfa parameter in prioritized experience replay memory
-__ExplorationStrategy__: which explorations strategy to use (supported values are EpsilonGreedyExplorationStrategy and BoltzmannExplorationStrategy)
-__tau__: parameter that describes how fast will the target network update it's values to the primary network (parameters of target network $\theta_{t}$ are updated to the parameters of primary network $\theta_{p}$ like this $\theta_{t}=\tau*\theta_{p} + (1-\tau)*\theta_{t})$
+- __start_eps__: starting epsilon value for epsilon greedy exploration strategy (original papers recommend 1.0)
+- __end_eps__: final epsilon value for epsilon greedy exploration strategy (original papers recommend 0.1)
+- __observing_frames__: number of frames to observe without any learning done
+- __exploring_frames__: number of frames to perform learning
+- __replay_memory_size__: size of the experience buffer (must be <= observing_frames) (30000 should be enough but the bigger the better)
+- __replay_batch_size__: number of experiences to consider in one train batch (original papers recommend 32)
+- __learning_rate__: learning rate of the AdamOptimizer (recommended value is 1e-4)
+- __log_freq__: frequency of testing the agent (log_freq=10 means that agent will be tested every 10 learning epsiodes - testing is done by letting the agent play 5 consecutive games and the average reward and episode length are recorded)
+- __saving_freq__: frequency of saving model parameters
+- __saving_dir__: directory in which should logs and models be stored
+- __img_width__: width of input image (original papers recommend 84)
+- __img_height__: height of input image (original papers recommend 84)
+- __num_consecutive_frames__: number of consecutive frames to stack in order to form one input to the neural network (num_consecutive_frames=3 means to use last 3 frames as a state representation => then the input to neural network is WxHx3) (original papers recommend 4)
+- __max_ep_length__: maximum episode length
+- __game_name__: name of the game to learn (only games that give image as a state representation are supported)
+- __gamma__: reward decay factor
+- __update_freq__: frequency at which to update target network (used in DDQN and DDDQN algorithms)
+- __log_filename__: where to save logging file
+- __MemoryType__: which memory to use (supported values are ExperienceReplayMemory, MemoryPrioritizedForgetting and PrioritizedExperienceReplayMemory)
+- __PEREps__: epsilon parameter in prioritized experience replay memory
+- __PERAlfa__: alfa parameter in prioritized experience replay memory
+- __ExplorationStrategy__: which explorations strategy to use (supported values are EpsilonGreedyExplorationStrategy and BoltzmannExplorationStrategy)
+- __tau__: parameter that describes how fast will the target network update it's values to the primary network (parameters of target network $\theta_{t}$ are updated to the parameters of primary network $\theta_{p}$ like this $\theta_{t}=\tau*\theta_{p} + (1-\tau)*\theta_{t})$
 
 After setting things either by script AgentRunner.py or by configuration file 'config.json' training can be done by running the AgentRunner.py script like this:
 ```
@@ -112,20 +112,20 @@ A3C algorithm is located in the Asynchronous folder. In order to configure param
 
 Configurable parameters are:
 
-__IMG_WIDTH__: width of input image
-__IMG_HEIGHT__: height of input image
-__CNT_FRAMES__: number of consecutive frames to form the state of the environment (this parameter is not available in the LSTM version)
-__GLOBAL_SCOPE__: name of the global scope
-__VALUE_MODIFIER__: value of scale for value loss
-__POLICY_MODIFIER__: value of scale for policy loss
-__ENTROPY_MODIFIER__: value of scale for entropy loss
-__MAX_STEPS__: how many steps to take into the account before making an update
-__DISCOUNT__: reward decay factor
-__ENV_NAME__: name of the game to learn
-__MAX_EP_LENGTH__: maximum length of episode (feel free to set it to some big number)
-__LEARNING_RATE__: learning rate of the Adam optimizer
-__CLIP_VALUE__: gradient clipping value (since this algorithm uses n-step return there is a greater posibility of exploding gradients)
-__SAVE_DIR__: directory in which should logs and models be stored
+- __IMG_WIDTH__: width of input image
+- __IMG_HEIGHT__: height of input image
+- __CNT_FRAMES__: number of consecutive frames to form the state of the environment (this parameter is not available in the LSTM version)
+- __GLOBAL_SCOPE__: name of the global scope
+- __VALUE_MODIFIER__: value of scale for value loss
+- __POLICY_MODIFIER__: value of scale for policy loss
+- __ENTROPY_MODIFIER__: value of scale for entropy loss
+- __MAX_STEPS__: how many steps to take into the account before making an update
+- __DISCOUNT__: reward decay factor
+- __ENV_NAME__: name of the game to learn
+- __MAX_EP_LENGTH__: maximum length of episode (feel free to set it to some big number)
+- __LEARNING_RATE__: learning rate of the Adam optimizer
+- __CLIP_VALUE__: gradient clipping value (since this algorithm uses n-step return there is a greater posibility of exploding gradients)
+- __SAVE_DIR__: directory in which should logs and models be stored
 
 ### LSTM version of A3C algorithm
 
