@@ -127,7 +127,7 @@ class Agent:
         if not 'gamma' in setup_dict:
             setup_dict['gamma'] = 0.99
         if not 'update_freq' in setup_dict:
-            setup_dict['update_freq'] = 4
+            setup_dict['update_freq'] = 1
         if not 'log_filename' in setup_dict:
             setup_dict['log_filename'] = 'log.txt'
         if not 'MemoryType' in setup_dict:

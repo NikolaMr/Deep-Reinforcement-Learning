@@ -5,6 +5,7 @@ import numpy as np
 import skimage
 from skimage import color, exposure, transform
 import threading
+import os
 
 IMG_WIDTH = 105
 IMG_HEIGHT = 80
@@ -12,15 +13,17 @@ CNT_FRAMES = 3
 GLOBAL_SCOPE = 'global'
 VALUE_MODIFIER = 0.5*1e0
 POLICY_MODIFIER = 1*1e0
-ENTROPY_MODIFIER = 2.5*1e-1#2.5e-5#0.0005
+ENTROPY_MODIFIER = 2.5*1e-1
 MAX_STEPS = 30
 DISCOUNT = 0.99
 ENV_NAME = 'BreakoutDeterministic-v4'
-#ENV_NAME = 'PongDeterministic-v4'
 MAX_EP_LENGTH = 100000
 LEARNING_RATE = 1e-4
 CLIP_VALUE = 2.0
 DECAY = 0.99
+CNT_THREADS = 24
+SAVE_DIR = 'AgentResults'
+
 def process_frame(x_t, img_rows, img_cols):
     x_t = skimage.color.rgb2gray(x_t)
     x_t = skimage.transform.resize(x_t,(img_rows, img_cols), mode='constant')
@@ -69,7 +72,6 @@ class Agent:
     def __build_model(self):
         print('building model')
         with tf.variable_scope(self.scope_name):
-            #weights_initializer = tf.truncated_normal_initializer(stddev=0.02)
             weights_initializer = tf.contrib.layers.xavier_initializer_conv2d()
             bias_initializer = tf.zeros_initializer()
             self.X = tf.placeholder(shape=[None, IMG_WIDTH, IMG_HEIGHT, CNT_FRAMES], dtype=tf.float32, name='input')
@@ -85,8 +87,6 @@ class Agent:
             flattened = tf.contrib.layers.flatten(conv3, scope='flatten')
             embedding = tf.contrib.layers.fully_connected(flattened, 512, activation_fn=tf.nn.relu, weights_initializer=tf.random_normal_initializer(stddev=0.02), biases_initializer=bias_initializer,\
                                                          scope='fc_embed')
-
-            #normalization = tf.layers.batch_normalization(embedding)
 
             self.policy = tf.contrib.layers.fully_connected(embedding, self.action_size, activation_fn=tf.nn.softmax, weights_initializer=tf.random_normal_initializer(stddev=0.05), biases_initializer=None,\
                                                            scope='fc_policy')
@@ -104,8 +104,6 @@ class Agent:
                 self.actions_oh = tf.one_hot(self.actions, depth=self.action_size, dtype=tf.float32, name='actions_oh')
                 self.target_values = tf.placeholder(shape=[None], dtype=tf.float32, name='target_vals')
                 self.advantages = tf.placeholder(shape=[None], dtype=tf.float32, name='advantages')
-                #print('adv shape', self.advantages.shape)
-                #self.advantages = tf.subtract(tf.stop_gradient(self.value), self.target_values, name='advantage')
 
                 MIN_POLICY = 1e-8
                 MAX_POLICY = 1.0 - MIN_POLICY
@@ -115,15 +113,12 @@ class Agent:
                 self.log_policy_for_action = tf.reduce_sum(tf.multiply(self.log_policy, self.actions_oh), axis=1, name='log_policy_for_action')
                 self.value_loss = tf.reduce_mean(tf.square(self.value - self.target_values), name='value_loss')
                 self.value_loss = self.value_loss * VALUE_MODIFIER
-                #self.value_loss = self.value_loss - self.value_loss
                 self.policy_loss = -tf.reduce_mean(tf.multiply(self.log_policy_for_action, self.advantages), name='policy_loss')
                 self.policy_loss = self.policy_loss * POLICY_MODIFIER
-                #entropija je E[-log(X)] = sum(p(x) * log(x))
                 self.entropy_beta = tf.get_variable('entropy_beta', shape=[],
                                        initializer=tf.constant_initializer(ENTROPY_MODIFIER), trainable=False)
                 self.entropy_loss = -tf.reduce_mean(self.policy * -self.log_policy, name='entropy_loss')
                 self.entropy_loss = self.entropy_loss * self.entropy_beta
-                #self.entropy_loss = self.entropy_loss - self.entropy_loss
                 self.loss = self.value_loss + \
                             self.policy_loss + \
                             self.entropy_loss
@@ -132,7 +127,6 @@ class Agent:
                 #update locals
                 grads = tf.gradients(self.loss, local_vars)
                 grads = [tf.clip_by_average_norm(grad, CLIP_VALUE) for grad in grads]
-                #grads, grad_norms = tf.clip_by_global_norm(grads, CLIP_VALUE)
                 self.update_ops = update_target_graph(GLOBAL_SCOPE, self.scope_name)
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_SCOPE)
                 capped_gvs = [(grad, var) for grad, var in zip(grads, global_vars)]
@@ -145,7 +139,6 @@ class Agent:
                                                       }\
                                            )
         policy = policy.flatten()
-        #print('cur policy', policy)
 
         global last_iter
 
@@ -157,8 +150,6 @@ class Agent:
             print('at iter', global_counter)
 
         prediction = np.random.choice(self.action_size, p=policy)
-        #prediction = np.argmax(policy)
-        #print('prediction', prediction)
         return prediction
 
     def act(self, sess, state):
@@ -198,7 +189,7 @@ start_time = time.time()
 class Worker:
     def __init__(self, agent):
         self.agent = agent
-        self.summary_writer = tf.summary.FileWriter(self.agent.scope_name)
+        self.summary_writer = tf.summary.FileWriter(os.path.join(SAVE_DIR, 'Tensorboard/' + self.agent.scope_name))
     def work(self, sess, optimizer, thread_lock):
 
         global global_counter
@@ -227,8 +218,6 @@ class Worker:
                     last_rewards.append(episode_reward)
                     last_frames.append(timestep)
                     if episode_counter > 0 and episode_counter % 5 == 0:
-                        #print('for agent:', self.agent.scope_name)
-                        #print('at episode', episode_counter, 'episode reward is', episode_reward)
                         if len(value_losses) > 0:
                             summary = tf.Summary()
 
@@ -299,9 +288,7 @@ class Worker:
                 advantages = advantages.flatten()
 
                 states = np.vstack(states)
-                #print('states shape', states.shape)
                 actions = np.array(actions).flatten()
-                #print('actions shape', actions.shape)
                 target_values = np.array(target_values).flatten()
 
                 value_loss, policy_loss, entropy_loss = \
@@ -320,16 +307,14 @@ import time
 worker_threads = []
 
 env_global = EnvWrapper(ENV_NAME)
-#global_agent = Agent(env_global, GLOBAL_SCOPE, tf.train.AdamOptimizer())
 global_agent = Agent(env_global, GLOBAL_SCOPE, tf.train.GradientDescentOptimizer(LEARNING_RATE))
 
-#config = tf.ConfigProto(device_count = {'GPU': 0})
 config = tf.ConfigProto()
 config.gpu_options.allow_growth=True
 
 sess = tf.Session(config=config)
 
-writer = tf.summary.FileWriter("graph", sess.graph)
+writer = tf.summary.FileWriter(os.path.join(SAVE_DIR, "Tensorboard/graph"), sess.graph)
 
 print('saved graph')
 
@@ -348,24 +333,22 @@ def global_saving_thread(agent, sess):
         elapsed_time = time.time() - start_time
 
         #save model every 15 minutes
-        while True:#global_counter <= MAX_ITERATIONS and elapsed_time <= MAX_LEARNING_TIME:
+        while True:
             print("Current model save name:", 'model_' + str(cnt_model % MAX_MODELS))
-            save_path = saver.save(sess, "models/model_" + str(cnt_model % MAX_MODELS) + ".ckpt", write_state=False, write_meta_graph=False)
+            save_path = saver.save(sess, os.path.join(SAVE_DIR, "models/model_" + str(cnt_model) + ".ckpt"))
             print("Current global iteration", global_counter)
             cnt_model += 1
             time.sleep(30 * 60)
         print("Learning time was", int(elapsed_time/60/60), "hours", int((elapsed_time - int(elapsed_time/60/60)*60*60)/60), "minutes")
 
-cnt_threads = 24
 thread_lock = threading.Lock()
 
 def worker_fun(worker, sess, optimizer, thread_lock):
     worker.work(sess, optimizer, thread_lock)
 
-for i in range(cnt_threads):
+for i in range(CNT_THREADS):
     env = EnvWrapper(ENV_NAME)
     optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
-    #optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE, decay=DECAY)
     worker = Worker(Agent(env, 'local' + str(i), optimizer))
     t = threading.Thread(target=worker_fun, args=(worker, sess, optimizer, thread_lock))
     worker_threads.append(t)
