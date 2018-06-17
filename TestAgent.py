@@ -1,7 +1,11 @@
-MODEL = 'testing/model_episode_1100.h5'
+#run the script by giving it path to model and game to play
+import sys
+
+model_path = sys.argv[1]
+game_name = sys.argv[2]
 
 import os
-if not os.path.exists(MODEL):
+if not os.path.exists(model_path):
     print('no model present')
     exit()
 
@@ -32,21 +36,21 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 set_session(tf.Session(config=config))
 
-img_rows , img_cols = 84, 84
-#Convert image into Black and white
-img_channels = 3 #We stack 3 frames
+model = keras.models.load_model(model_path)
+input_shape = model.get_input_shape_at(0)
+img_width = input_shape[1]
+img_height = input_shape[2]
+num_consecutive_frames = input_shape[3]
+env = gym.make(game_name)
+ACTIONS = env.action_space.n # number of valid actions
 
 def process_frame(x_t):
     x_t = skimage.color.rgb2gray(x_t)
-    x_t = skimage.transform.resize(x_t,(img_cols,img_rows), mode='constant')
+    x_t = skimage.transform.resize(x_t,(img_width,img_height), mode='constant')
     x_t = skimage.exposure.rescale_intensity(x_t,out_range=(0,255))
-    x_t = x_t.reshape((1, img_cols, img_rows, 1))
+    x_t = x_t.reshape((1, img_width, img_height, 1))
     x_t /= 255.0
     return x_t
-
-model = keras.models.load_model(MODEL)
-env = gym.make('BreakoutDeterministic-v4')
-ACTIONS = env.action_space.n # number of valid actions
 
 def play_game():
     EPSILON = 0.01
@@ -67,11 +71,12 @@ def play_game():
                 a_t = random.randrange(ACTIONS)
         x_t1,r_t,done,_ = env.step(a_t)
         x_t1 = process_frame(x_t1)
-        s_t1 = np.append(x_t1, s_t[:, :, :, :2], axis=3)
+        s_t1 = np.append(x_t1, s_t[:, :, :, :num_consecutive_frames-1], axis=3)
         s_t = s_t1
         rAll += r_t
         if done:
             break
+    env.close()
     print('steps', i)
     return rAll
 rAll = play_game()

@@ -11,9 +11,9 @@ from keras.layers.convolutional import Conv2D, MaxPooling2D
 from keras.optimizers import SGD , Adam
 import Utilities
 
-class Dueling_DDQN_Agent(Agent.Agent):
+class DDQN_Agent(Agent.Agent):
     def __init__(self, setup_dict=None):
-        super(Dueling_DDQN_Agent, self).__init__(setup_dict)
+        super(DDQN_Agent, self).__init__(setup_dict)
         if setup_dict == None:
             setup_dict = {}
         if not 'tau' in setup_dict:
@@ -21,7 +21,7 @@ class Dueling_DDQN_Agent(Agent.Agent):
         self.tau = setup_dict['tau']
 
     def post_train(self):
-        super(Dueling_DDQN_Agent, self).post_train()
+        super(DDQN_Agent, self).post_train()
         if (self.t % self.update_freq) == 0:
             Utilities.update_target(self.var_assign_ops)
         for i in range(len(self.samples)):
@@ -37,7 +37,7 @@ class Dueling_DDQN_Agent(Agent.Agent):
                 self.cnt_rewarded += 1
 
     def initialize(self):
-        super(Dueling_DDQN_Agent, self).initialize()
+        super(DDQN_Agent, self).initialize()
         self.var_assign_ops = Utilities.update_target_graph(self.target_model, self.model, self.tau)
 
     def get_target(self, state_t, action_t, reward_t, state_t1, done_t):
@@ -59,29 +59,12 @@ class Dueling_DDQN_Agent(Agent.Agent):
         model = Activation('relu')(model)
         model = Conv2D(64, (3, 3), strides=(1, 1), padding='valid')(model)
         model = Activation('relu')(model)
+        model = Flatten()(model)
+        model = Dense(512)(model)
+        model = Activation('relu')(model)
+        model = Dense(self.num_actions)(model)
 
-        stream = Flatten()(model)
-
-        advantage = Dense(self.num_actions, name='Advantage_stream')(stream)
-        value = Dense(1, name='Value_stream')(stream)
-
-        def mean(x):
-            import keras.backend
-            res = keras.backend.mean(x, axis=1, keepdims=True)
-            return res
-
-        meanRes = Lambda(function=mean, name='Mean_layer')(advantage)
-
-        from keras.layers import Concatenate
-        concatenations = []
-        for i in range(self.num_actions):
-            concatenations.append(meanRes)
-        meanRes = Concatenate(name='Mean_broadcasting')(concatenations)
-
-        advantage = keras.layers.subtract([advantage, meanRes], name='A_z')
-        qOut = keras.layers.add([value, advantage], name='Q_out')
-
-        model = Model(inputs=inputs, outputs=qOut)
+        model = Model(inputs=inputs, outputs=model)
         adam = Adam(lr=self.learning_rate)
         model.compile(loss='mse',optimizer=adam)
 
