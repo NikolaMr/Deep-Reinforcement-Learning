@@ -158,7 +158,7 @@ In order to test version of the A3C algorithm without the LSTM layer you just ne
 ```
 python3 A3C_no_lstm_test.py <model_path> <should_render> #should render is y/n character that indicates will the rendering be done or not
 ```
-Testing is performed by playing the game __NUM_GAMES__ times. __NUM_GAMES__ can be changed in A3C_test.py. Also, __IMG_WIDTH__, __IMG_HEIGHT__, __ENV_NAME__ and __CNT_FRAMES__ can be configured too.
+Testing is performed by playing the game __NUM_GAMES__ times. __NUM_GAMES__ can be changed in A3C_no_lstm_test.py. Also, __IMG_WIDTH__, __IMG_HEIGHT__, __ENV_NAME__ and __CNT_FRAMES__ can be configured too.
 Make sure to use the same __IMG_WIDTH__, __IMG_HEIGHT__ and __CNT_FRAMES__ as when training in order to avoid errors when loading model.
 
 In order to check Tensorboard output you can start __start_tensorboard.sh__ script once inside the Tensorboard directory by running:
